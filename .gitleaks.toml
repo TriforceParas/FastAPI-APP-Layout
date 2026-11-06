@@ -1,0 +1,16 @@
+# Secret scanning config (used by the CI "security" job).
+# Extends gitleaks' default rules; only well-known, intentionally public
+# placeholder values are allowed here. Never allowlist a real secret: rotate it.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Public test values"
+regexes = [
+  # Cloudflare Turnstile documented test keys (always pass / block / challenge)
+  '''[123]x0000000000000000000000000000000AA''',
+  '''[123]x00000000000000000000(AA|AB|FF)''',
+  # Fixed fake secrets used by the test suite and CI
+  '''test-secret-key-that-is-long-enough-123456''',
+  '''ci-only-secret-key-that-is-long-enough-123''',
+]

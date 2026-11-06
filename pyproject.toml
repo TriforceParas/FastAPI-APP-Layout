@@ -1,0 +1,20 @@
+# Tooling configuration only. Dependencies live in requirements*.in / .txt
+# (compile with: uv pip compile requirements.in -o requirements.txt).
+[tool.ruff]
+line-length = 120
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "S", "BLE"]
+ignore = ["S101", "S105", "S106", "B008"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S"]
+"tests/conftest.py" = ["S", "E402"]  # must set env vars before importing the app
+"migrations/*" = ["E501"]
+"main.py" = ["S603"]  # fixed argv, no user input
+".claude/skills/*/scripts/*" = ["S603", "S607"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"

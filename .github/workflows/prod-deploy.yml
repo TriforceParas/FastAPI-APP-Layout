@@ -1,0 +1,27 @@
+name: Manual Deploy to Production
+
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy-prod:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Prod via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            echo "🚀 Starting Production deployment..."
+            # Change "app" to this service's folder / compose service name.
+            cd /opt/app/prod/app
+            git pull origin main
+            # Safety net: the auth-bypass sentinel must never exist on a server.
+            rm -f .auth-bypass
+            cd /opt/app/prod
+            docker compose up -d --build app
+            echo "✅ Production deployment successful!"

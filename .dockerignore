@@ -1,0 +1,22 @@
+# Never ship secrets, local data or the auth-bypass sentinel into an image.
+.env
+.env.*
+!.env.example
+.auth-bypass
+data/
+
+.git/
+.github/
+.venv/
+**/__pycache__/
+.pytest_cache/
+.ruff_cache/
+tests/
+
+frontend/node_modules/
+frontend/dist/
+
+# Dev tooling, not needed at runtime
+.claude/
+AGENTS.md
+CLAUDE.md

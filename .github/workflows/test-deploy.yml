@@ -1,0 +1,88 @@
+name: Auto Deploy to Test
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Backend lint & tests
+        run: |
+          pip install -r requirements-dev.txt
+          ruff check app tests main.py migrations .claude
+          pytest
+      - name: Migrations match the models
+        env:
+          DATABASE_URL: sqlite:////tmp/ci-fresh.db
+          DATA_DIR: /tmp/ci-data
+          SECRET_KEY: ci-only-secret-key-that-is-long-enough-123
+        run: |
+          alembic upgrade head
+          alembic check
+      - name: Frontend typecheck & build
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # gitleaks scans the whole history
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+      - name: Python dependency audit (pip-audit)
+        run: |
+          pip install pip-audit
+          pip-audit -r requirements.txt
+      - name: npm dependency audit
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm audit --audit-level=high
+      - name: Secret scan (gitleaks)
+        run: docker run --rm -v "$PWD:/repo" ghcr.io/gitleaks/gitleaks:v8.21.2 git /repo --config /repo/.gitleaks.toml --redact --exit-code 1
+      - name: Build image
+        run: docker build -t app:ci .
+      - name: Image vulnerability scan (Trivy)
+        run: >
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:0.57.0
+          image --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --no-progress app:ci
+
+  deploy-test:
+    needs: [checks, security]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Test via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          password: ${{ secrets.VPS_PASSWORD }}
+          port: 22
+          script: |
+            set -e
+            echo "Starting Test deployment..."
+            # Change "app" to this service's folder / compose service name.
+            cd /opt/app/test/app
+            git pull origin main
+            cd /opt/app/test
+            docker compose up -d --build app
+            echo "Test deployment successful!"

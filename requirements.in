@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+pydantic[email]
+pydantic-settings
+sqlalchemy
+alembic
+argon2-cffi
+httpx
+cryptography
+segno
